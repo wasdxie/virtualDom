@@ -26,6 +26,9 @@
     ]
 }
  **/
+
+const ATTR_KEY = '__preprops_';
+
 function createElement(vdom) {
 // 如果vdom是字符串或者数字类型，则创建文本节点，比如“Hello World”
     if (typeof vdom === 'string' || typeof vdom === 'number')
@@ -49,6 +52,7 @@ function createElement(vdom) {
 // 属性赋值
 
 function setProps(element, props) {
+    element[ATTR_KEY] = props;
     for (let key in props) {
         element.setAttribute(key, props[key]);
     }
@@ -151,17 +155,18 @@ function step2(root) {
         const newVDom = view();
 
         // 生成差异对象
-        diff(preVDom, newVDom,element,0);
+        diff( newVDom,element,0);
     }
 
-    function diff(oldVDom, newVDom,parent,index = 0) {
+    function diff( newVDom,parent,index = 0) {
+        const element = parent.childNodes[index];
         // 新建 node
-        if (oldVDom == undefined) {
+        if (element == undefined) {
             parent.appendChild(createElement(newVDom));
             return;
         }
 
-        const element = parent.childNodes[index];
+
         // 删除 node
         if (newVDom == undefined) {
             parent.removeChild(element);
@@ -170,57 +175,82 @@ function step2(root) {
 
         // 替换 node
         if (
-            typeof oldVDom !== typeof newVDom ||
-            ((typeof oldVDom === 'string' || typeof oldVDom === 'number') && oldVDom !== newVDom) ||
-            oldVDom.tag !== newVDom.tag
+            !isSameType(element,newVDom)
         ) {
             parent.replaceChild(createElement(newVDom),element);
             return;
         }
 
         // 更新 node
-        if (oldVDom.tag) {
+        if (element.nodeType == Node.ELEMENT_NODE) {
             // 比较 props 的变化
-            diffProps(oldVDom, newVDom,element);
+            diffProps( newVDom,element);
 
             // 比较 children 的变化
-           diffChildren(oldVDom, newVDom,element);
+           diffChildren(newVDom,element);
         }
     }
 
-// 比较 props 的变化
-    function diffProps(oldVDom, newVDom,element) {
-        const patches = [];
 
-        const allProps = {...oldVDom.props, ...newVDom.props};
+    // 比较元素类型是否相同
+    function isSameType(element, newVDom) {
+        const elmType = element.nodeType;
+        const vdomType = typeof newVDom;
+
+        // 当dom元素是文本节点的情况
+        if (elmType === Node.TEXT_NODE &&
+            (vdomType === 'string' || vdomType === 'number') &&
+            element.nodeValue == newVDom
+        ) {
+            return true;
+        }
+
+        // 当dom元素是普通节点的情况
+        if (elmType === Node.ELEMENT_NODE && element.tagName.toLowerCase() == newVDom.tag) {
+            return true;
+        }
+
+        return false;
+    }
+
+
+// 比较 props 的变化
+    function diffProps(newVDom,element) {
+       let newProps = {...element[ATTR_KEY]}
+
+        const allProps = {...newProps, ...newVDom.props};
 
         // 获取新旧所有属性名后，再逐一判断新旧属性值
         Object.keys(allProps).forEach((key) => {
-                const oldValue = oldVDom.props[key];
+                const oldValue = newProps[key];
                 const newValue = newVDom.props[key];
 
                 // 删除属性
                 if (newValue == undefined) {
                      element.removeAttribute(key);
+                    delete newProps[key];
                 }
                 // 更新属性
                 else if (oldValue == undefined || oldValue !== newValue) {
                       element.setAttribute(key,newValue);
+                    newProps[key] = newValue;
                 }
             }
         )
+        element[ATTR_KEY] = newProps;
 
-        return patches;
     }
 
 // 比较 children 的变化
-    function diffChildren(oldVDom, newVDom,parent) {
+    function diffChildren( newVDom,parent) {
         // 获取子元素最大长度
-        const childLength = Math.max(oldVDom.children.length, newVDom.children.length);
+        let newProps = {...parent[ATTR_KEY]}
+        let length = newProps.children?newProps.children.length:0;
+        const childLength = Math.max(length, newVDom.children.length);
 
         // 遍历并diff子元素
         for (let i = 0; i < childLength; i++) {
-            diff(oldVDom.children[i], newVDom.children[i],parent,i);
+            diff(newVDom.children[i],parent,i);
         }
 
     }
