@@ -173,22 +173,20 @@ function step2(root) {
             return;
         }
 
-        // 替换 node
-        if (
-            !isSameType(element,newVDom)
-        ) {
+        if(isSameType(element,newVDom)){
+            // 更新 node
+            if (element.nodeType == Node.ELEMENT_NODE) {
+                // 比较 props 的变化
+                diffProps( newVDom,element);
+
+                // 比较 children 的变化
+                diffChildren(newVDom,element);
+            }
+        }else {
+            //替换node
             parent.replaceChild(createElement(newVDom),element);
-            return;
         }
 
-        // 更新 node
-        if (element.nodeType == Node.ELEMENT_NODE) {
-            // 比较 props 的变化
-            diffProps( newVDom,element);
-
-            // 比较 children 的变化
-           diffChildren(newVDom,element);
-        }
     }
 
 
@@ -205,7 +203,7 @@ function step2(root) {
             return true;
         }
 
-        // 当dom元素是普通节点的情况
+        // 当dom元素是普通节点的情况  检查props
         if (elmType === Node.ELEMENT_NODE && element.tagName.toLowerCase() == newVDom.tag) {
             return true;
         }
@@ -244,8 +242,7 @@ function step2(root) {
 // 比较 children 的变化
     function diffChildren( newVDom,parent) {
         // 获取子元素最大长度
-        let newProps = {...parent[ATTR_KEY]}
-        let length = newProps.children?newProps.children.length:0;
+        let length = parent.childNodes.length;
         const childLength = Math.max(length, newVDom.children.length);
 
         // 遍历并diff子元素
